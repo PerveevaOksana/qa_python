@@ -1,4 +1,4 @@
-
+# Тесты для класса BooksCollector (спринт 4)
 import pytest
 from main import BooksCollector
 
