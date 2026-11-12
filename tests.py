@@ -1,6 +1,6 @@
-
 import pytest
 from main import BooksCollector
+
 
 @pytest.mark.parametrize(
     "name, expected_in_dict",
@@ -9,10 +9,8 @@ from main import BooksCollector
         ("Ровно40символов" + "a" * 24, True),
         ("СлишкомДлинноеНазваниеКниги" + "a" * 30, False),
         ("", False),
-        # Пробелы: если код реально добавляет их как книгу, ожидаем True.
-        # Если по заданию это должно быть False, но класс менять нельзя — тогда
-        # этот кейс лучше вообще убрать, чтобы не ломать тест.
-        ("   ", True),  # <-- изменено: теперь ждём True, потому что код добавляет
+        # Пробелы: код добавляет их как книгу, поэтому ожидаем True.
+        ("   ", True),
     ],
 )
 def test_add_new_book_validates_name_and_length(name, expected_in_dict):
@@ -34,17 +32,21 @@ def test_add_new_book_prevents_duplicates():
     [
         ("Книга1", "Фантастика", "Фантастика"),
         ("Книга2", "Ужасы", "Ужасы"),
-        # НеЖанр: код ставит '', поэтому ждём '' (а не None)
+        # Неизвестный жанр не устанавливается, жанр остаётся пустым
         ("Книга3", "НеЖанр", ""),
-        ("НеДобавленная", "Фантастика", None),
     ],
 )
-def test_set_book_genre_sets_or_ignores(name, genre, expected_genre):
+def test_set_book_genre_sets_known_genre(name, genre, expected_genre):
     collector = BooksCollector()
-    if name not in ["НеДобавленная"]:
-        collector.add_new_book(name)
+    collector.add_new_book(name)
     collector.set_book_genre(name, genre)
     assert collector.get_book_genre(name) == expected_genre
+
+
+def test_set_book_genre_ignores_book_not_in_collection():
+    collector = BooksCollector()
+    collector.set_book_genre("НеДобавленная", "Фантастика")
+    assert collector.get_book_genre("НеДобавленная") is None
 
 
 def test_get_book_genre_returns_none_for_missing_book():
@@ -88,19 +90,18 @@ def test_get_books_for_children_excludes_age_rated_genres():
     assert "ДетскаяКнига" in books_for_children and "СтрашнаяКнига" not in books_for_children
 
 
-@pytest.mark.parametrize(
-    "name, should_be_in_favorites",
-    [
-        ("Любимая1", True),
-        ("НетВКоллекции", False),
-    ],
-)
-def test_add_book_in_favorites_respects_rules(name, should_be_in_favorites):
+def test_add_book_in_favorites_adds_book_from_collection():
     collector = BooksCollector()
-    if should_be_in_favorites:
-        collector.add_new_book(name)
+    name = "Любимая1"
+    collector.add_new_book(name)
     collector.add_book_in_favorites(name)
-    assert (name in collector.get_list_of_favorites_books()) is should_be_in_favorites
+    assert name in collector.get_list_of_favorites_books()
+
+
+def test_add_book_in_favorites_ignores_book_not_in_collection():
+    collector = BooksCollector()
+    collector.add_book_in_favorites("НетВКоллекции")
+    assert "НетВКоллекции" not in collector.get_list_of_favorites_books()
 
 
 def test_add_book_in_favorites_prevents_duplicate_in_favorites():
@@ -120,4 +121,5 @@ def test_delete_book_from_favorites_works_and_is_safe():
     collector.delete_book_from_favorites(name)
     assert name not in collector.get_list_of_favorites_books()
     collector.delete_book_from_favorites("НетМеняЗдесь")
-    assert True
+    assert "НетМеняЗдесь" not in collector.get_list_of_favorites_books()
+
